@@ -1,0 +1,28 @@
+name: "DEEPSTYLE"
+input: "data"
+force_backward: true
+
+input_shape {
+  dim: 1
+  dim: 3
+  dim: 224
+  dim: 224
+}
+
+layers {
+  bottom: "data"
+  top: "biased_data"
+  name: "biased_data"
+  type: BIAS
+  param {
+    name: "bias"
+    lr_mult: 1
+    decay_mult: 0
+  }
+  bias_param {
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}

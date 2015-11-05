@@ -52,8 +52,15 @@ class Network(object):
         """
         base_path = os.path.join(style_root,"models", model_name)
 
+        # deepstyle network
+        if model_name == "deepstyle":
+            model_file = os.path.join(base_path, "DEEP_STYLE.prototxt")
+            mean_file = os.path.join(base_path, "ilsvrc_2012_mean.npy")
+            pretrained_file = "none"
+            weights = "none";
+
         # vgg19
-        if model_name == "vgg19":
+        elif model_name == "vgg19":
             model_file = os.path.join(base_path, "VGG_ILSVRC_19_layers_deploy.prototxt")
             pretrained_file = os.path.join(base_path, "VGG_ILSVRC_19_layers.caffemodel")
             mean_file = os.path.join(base_path, "ilsvrc_2012_mean.npy")
@@ -91,8 +98,6 @@ class Network(object):
             if layer in self.weights["style"] or layer in self.weights["content"]:
                 self.layers.append(layer)
 
-
-
     def load_model(self, model_file, pretrained_file, mean_file):
         """
             Loads specified model from caffe install (see caffe docs).
@@ -108,13 +113,17 @@ class Network(object):
         """
 
         assert os.path.isfile(model_file), "Model protobuf "+model_file+" not found."
-        assert os.path.isfile(pretrained_file), "Pretrained file "+pretrained_file+" not found."
 
         # load net (supressing stderr output)
         null_fds = os.open(os.devnull, os.O_RDWR)
         out_orig = os.dup(2)
         os.dup2(null_fds, 2)
-        net = caffe.Net(model_file, pretrained_file, caffe.TEST)
+        if pretrained_file == "none":
+            net = caffe.net(model_file, caffe.TEST)
+        elif (os.path.isfile(pretrained_file)):
+            net = caffe.Net(model_file, pretrained_file, caffe.TEST)
+        else:
+            assert os.path.isfile(pretrained_file), "Pretrained file "+pretrained_file+" not found."
         os.dup2(out_orig, 2)
         os.close(null_fds)
 
@@ -153,12 +162,15 @@ def main(args):
     img_content = caffe.io.load_image(args.content_img)
     logging.info("Successfully loaded images.")
 
-    # artistic style class
+    # load nets
     style_net = Network(args.model.lower())
     logging.info("Successfully loaded style model {0}.".format(args.model))
 
     content_net = Network(args.model.lower())
     logging.info("Successfully loaded content model {0}.".format(args.model))
+
+    combined_net = Network('deepstyle')
+    logging.info("Successfully loaded deepstyle model {0}.".format(args.model))
 
     ## perform style transfer
     #start = timeit.default_timer()
