@@ -11,6 +11,8 @@ from scipy.misc import imsave
 from skimage import img_as_ubyte
 from skimage.transform import rescale
 
+import IPython
+
 # logging
 LOG_FORMAT = "%(filename)s:%(funcName)s:%(asctime)s.%(msecs)03d -- %(message)s"
 
@@ -92,7 +94,10 @@ class Network(object):
 
         # add model and weights
         self.load_model(model_file, pretrained_file, mean_file)
-        self.weights = weights.copy()
+        if type(weights) is dict:
+            self.weights = weights.copy()
+        else:
+            self.weights = {"content":{"None"},"style":{"None"}}
         self.layers = []
         for layer in self.net.params.keys():
             if layer in self.weights["style"] or layer in self.weights["content"]:
@@ -119,15 +124,18 @@ class Network(object):
         out_orig = os.dup(2)
         os.dup2(null_fds, 2)
         if pretrained_file == "none":
-            net = caffe.net(model_file, caffe.TEST)
+            net = caffe.Net(model_file, caffe.TEST)
         elif (os.path.isfile(pretrained_file)):
             net = caffe.Net(model_file, pretrained_file, caffe.TEST)
         else:
+            #TODO: program does not exit correctly
             assert os.path.isfile(pretrained_file), "Pretrained file "+pretrained_file+" not found."
+            print "ERROR: load_model: Unknown error." # Should not happen - assert should fail
+            return
         os.dup2(out_orig, 2)
         os.close(null_fds)
 
-        # all models used are trained on imagenet data
+        # all models are assumed to be trained on imagenet data
         transformer = caffe.io.Transformer({"data": net.blobs["data"].data.shape})
         transformer.set_mean("data", np.load(mean_file).mean(1).mean(1))
         transformer.set_channel_swap("data", (2,1,0))
@@ -161,6 +169,7 @@ def main(args):
     img_style = caffe.io.load_image(args.style_img)
     img_content = caffe.io.load_image(args.content_img)
     logging.info("Successfully loaded images.")
+
 
     # load nets
     style_net = Network(args.model.lower())
