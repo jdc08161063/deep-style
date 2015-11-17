@@ -27,12 +27,6 @@ def _two_conv_relu(bottom, kernel_size, num_output, pad=0):
     conv2, relu2 = _one_conv_relu(relu1, kernel_size, num_output, pad)
     return conv1, relu1, conv2, relu2
 
-def _three_conv_relu(bottom, kernel_size, num_output, pad=0):
-    conv1, relu1 = _one_conv_relu(bottom, kernel_size, num_output, pad)
-    conv2, relu2 = _one_conv_relu(relu1, kernel_size, num_output, pad)
-    conv3, relu3 = _one_conv_relu(relu2, kernel_size, num_output, pad)
-    return conv1, relu1, conv2, relu2, conv3, relu3
-
 def _four_conv_relu(bottom, kernel_size, num_output, pad=0):
     conv1, relu1, conv2, relu2 = _two_conv_relu(bottom, kernel_size, num_output, pad)
     conv3, relu3, conv4, relu4 = _two_conv_relu(relu2, kernel_size, num_output, pad)
@@ -73,7 +67,7 @@ class Network(object):
         self.net = caffe.NetSpec()
 
         setattr(self.net, self.prefix+"conv1_1", L.Convolution(kernel_size=3, num_output=64, pad=1))
-        setattr(self.net, self.prefix+"relu1_1", L.ReLU(self.net.conv1_1, in_place=True))
+        setattr(self.net, self.prefix+"relu1_1", L.ReLU(getattr(self.net, self.prefix+"conv1_1"), in_place=True))
 
         bottom = getattr(self.net, self.prefix+"relu1_1")
         for idx, layer in enumerate(_one_conv_relu(bottom, kernel_size=3, num_output=64, pad=1)):
@@ -81,39 +75,48 @@ class Network(object):
                 setattr(self.net, self.prefix+"conv1_2", layer)
             else:
                 setattr(self.net, self.prefix+"relu1_2", layer)
-        setattr(self.net, self.prefix+"pool1", _ave_pool(self.net.relu1_2, kernel_size=2, stride=2))
+        bottom = getattr(self.net, self.prefix+"relu1_2")
+        setattr(self.net, self.prefix+"pool1", _ave_pool(bottom, kernel_size=2, stride=2))
 
         bottom = getattr(self.net, self.prefix+"pool1")
-        for idx, layer in enumerate(_two_conv_relu(self.net.pool1, kernel_size=3, num_output=128, pad=1)):
+        for idx, layer in enumerate(_two_conv_relu(bottom, kernel_size=3, num_output=128, pad=1)):
+            layer_no = (idx - idx%2)/2+1
             if idx%2:
-                setattr(self.net, self.prefix+"conv1_2", layer)
+                setattr(self.net, self.prefix+"conv2_"+str(layer_no), layer)
             else:
-                setattr(self.net, self.prefix+"relu1_2", layer)
-        self.net.conv2_1, self.net.relu2_1, self.net.conv2_2, self.net.relu2_2 = \
-            _two_conv_relu(self.net.pool1, kernel_size=3, num_output=128, pad=1)
-        self.net.pool2 = _ave_pool(self.net.relu2_2, kernel_size=2, stride=2)
+                setattr(self.net, self.prefix+"relu2_"+str(layer_no), layer)
+        bottom = getattr(self.net, self.prefix+"relu2_2")
+        setattr(self.net, self.prefix+"pool2", _ave_pool(bottom, kernel_size=2, stride=2))
 
-        self.net.conv3_1, self.net.relu3_1,\
-        self.net.conv3_2, self.net.relu3_2,\
-        self.net.conv3_3, self.net.relu3_3,\
-        self.net.conv3_4, self.net.relu3_4 =\
-            _four_conv_relu(self.net.pool2, kernel_size=3, num_output=256, pad=1)
-        self.net.pool3 = _ave_pool(self.net.relu3_4, kernel_size=2, stride=2)
+        bottom = getattr(self.net, self.prefix+"pool2")
+        for idx, layer in enumerate(_four_conv_relu(bottom, kernel_size=3, num_output=256, pad=1)):
+            layer_no = (idx - idx%2)/2+1
+            if idx%2:
+                setattr(self.net, self.prefix+"conv3_"+str(layer_no), layer)
+            else:
+                setattr(self.net, self.prefix+"relu3_"+str(layer_no), layer)
+        bottom = getattr(self.net, self.prefix+"relu3_4")
+        setattr(self.net, self.prefix+"pool3", _ave_pool(bottom, kernel_size=2, stride=2))
 
-        self.net.conv4_1, self.net.relu4_1,\
-        self.net.conv4_2, self.net.relu4_2,\
-        self.net.conv4_3, self.net.relu4_3,\
-        self.net.conv4_4, self.net.relu4_4 =\
-            _four_conv_relu(self.net.pool3, kernel_size=3, num_output=512, pad=1)
-        self.net.pool4 = _ave_pool(self.net.relu4_4, kernel_size=2, stride=2)
+        bottom = getattr(self.net, self.prefix+"pool3")
+        for idx, layer in enumerate(_four_conv_relu(bottom, kernel_size=3, num_output=512, pad=1)):
+            layer_no = (idx - idx%2)/2+1
+            if idx%2:
+                setattr(self.net, self.prefix+"conv4_"+str(layer_no), layer)
+            else:
+                setattr(self.net, self.prefix+"relu4_"+str(layer_no), layer)
+        bottom = getattr(self.net, self.prefix+"relu4_4")
+        setattr(self.net, self.prefix+"pool4", _ave_pool(bottom, kernel_size=2, stride=2))
 
-        self.net.conv5_1, self.net.relu5_1,\
-        self.net.conv5_2, self.net.relu5_2,\
-        self.net.conv5_3, self.net.relu5_3,\
-        self.net.conv5_4, self.net.relu5_4 =\
-            _four_conv_relu(self.net.pool4, kernel_size=3, num_output=512, pad=1)
-        self.net.pool5 = _ave_pool(self.net.relu5_4, kernel_size=2, stride=2)
-
+        bottom = getattr(self.net, self.prefix+"pool4")
+        for idx, layer in enumerate(_four_conv_relu(bottom, kernel_size=3, num_output=512, pad=1)):
+            layer_no = (idx - idx%2)/2+1
+            if idx%2:
+                setattr(self.net, self.prefix+"conv5_"+str(layer_no), layer)
+            else:
+                setattr(self.net, self.prefix+"relu5_"+str(layer_no), layer)
+        bottom = getattr(self.net, self.prefix+"relu5_4")
+        setattr(self.net, self.prefix+"pool5", _ave_pool(bottom, kernel_size=2, stride=2))
 
     def _create_blank_net(self):
         self.net = caffe.NetSpec()
@@ -131,24 +134,25 @@ def main(args):
     style_net = Network(args.model_name.lower(),prefix="style_")
     logging.info("Successfully loaded style model {0}.".format(args.model_name))
 
-    style_net.print_net("style")
+    style_net.print_net()
     logging.info("Printed style model.")
 
-    #content_net = Network(args.model_name.lower())
-    #content_net.net.bias1 = L.Bias(param=dict(name="bias",lr_mult=1,decay_mult=0),
-    #    bias_param=dict(bias_filler=dict(type="constant",value=0)))
-    #content_net.net.conv1_1.fn.inputs = (content_net.net.bias1,)
-    #logging.info("Successfully loaded content model {0}.".format(args.model_name))
+    content_net = Network(args.model_name.lower(),prefix="content_")
+    content_net.net.content_bias1 = L.Bias(param=dict(name="bias",lr_mult=1,decay_mult=0),
+        bias_param=dict(bias_filler=dict(type="constant",value=0)))
+    content_net.net.content_conv1_1.fn.inputs = (content_net.net.content_bias1,)
+    logging.info("Successfully loaded content model {0}.".format(args.model_name))
 
-    #content_net.print_net("content")
-    #logging.info("Printed content model.")
-    #
-    #deepstyle_net = Network("blank")
-    #logging.info("Successfully loaded deepstyle model")
+    content_net.print_net()
+    logging.info("Printed content model.")
+    
+    deepstyle_net = Network("blank",prefix="deepstyle_")
+    logging.info("Successfully loaded deepstyle model")
 
-    #style_proto = style_net.net.to_proto()
-    #temp = protobuf.text_format.Merge(str(style_proto),deepstyle_net.net.to_proto())
-    #open('tmp.prototxt','w').write(str(temp))
+    style_proto = style_net.net.to_proto()
+    temp = protobuf.text_format.Merge(str(style_net.net.to_proto()),content_net.net.to_proto())
+    temp2 = protobuf.text_format.Merge(str(temp),deepstyle_net.net.to_proto())
+    open('tmp.prototxt','w').write(str(temp2))
 
 if __name__ == "__main__":
     args = parser.parse_args()
