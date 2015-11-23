@@ -205,7 +205,6 @@ def main(args):
     #        os.makedirs(os.path.dirname(out_path))
     #imsave(out_path, img_as_ubyte(img_out))
     #logging.info("Output saved to {0}.".format(out_path))
-    
 
 if __name__ == "__main__":
     args = parser.parse_args()
