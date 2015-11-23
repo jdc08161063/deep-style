@@ -19,7 +19,7 @@ VGG19_WEIGHTS = {"content": {"conv4_2": 1},
 
 parser = argparse.ArgumentParser(description="Generate network using Caffe Python interface.",
                                  usage="generateNetwork.py -m <model_name>")
-parser.add_argument("-m", "--model-name", type=str, required=True, help="Model type (vgg19 only)")
+parser.add_argument("-m", "--model-name", default="vgg19", type=str, required=False, help="Model type (vgg19 only)")
 parser.add_argument("-r", "--ratio", default="1e4", type=str, required=False, help="style-to-content ratio")
 parser.add_argument("-o", "--output", default="./", required=False, help="output path")
 parser.add_argument("-b", "--batch-size", default=1, type=int, required=False, help="Number of items in a batch")
@@ -28,7 +28,7 @@ parser.add_argument("-b", "--batch-size", default=1, type=int, required=False, h
 # Helper functions
 def _one_conv_relu(bottom, kernel_size, num_output, pad=0):
     if bottom is None:
-        conv = L.Convolution(num_output=num_output, 
+        conv = L.Convolution(kernel_size=kernel_size, num_output=num_output, 
                 pad=pad)
     else:
         conv = L.Convolution(bottom, kernel_size=kernel_size, num_output=num_output, 
@@ -179,8 +179,9 @@ def main(args):
     deepstyle_net = Network("merge", "deepstyle_", (style_net, content_net))
 
     for layer_name in weights["style"].keys():
-        layer = L.Gramian(bottom=layer_name, gramian_param=dict(normalize_output=False))
+        layer = L.Gramian(bottom="style_"+layer_name, gramian_param=dict(normalize_output=True))
         setattr(deepstyle_net.net, "gramian_style_"+layer_name, layer)
+        layer = L.Gramian(bottom="content_"+layer_name, gramian_param=dict(normalize_output=True))
         setattr(deepstyle_net.net, "gramian_content_"+layer_name, layer)
 
     style_gram_list = [key for (key, value) in deepstyle_net.net.tops.iteritems() if "gramian_style" in key]
@@ -188,7 +189,6 @@ def main(args):
     deepstyle_net.net.concat_style_gramians = L.Concat(bottom=style_gram_list)
     deepstyle_net.net.concat_content_gramians = L.Concat(bottom=content_gram_list)
     deepstyle_net.net.style_loss = L.EuclideanLoss(bottom=["concat_style_gramians", "concat_content_gramians"],\
-                                   top="style_error",\
                                    loss_weight=np.float(args.ratio))
 
     style_activity_list = ["style_"+key for key in weights["content"].keys()]
@@ -196,7 +196,6 @@ def main(args):
     deepstyle_net.net.concat_style_activity = L.Concat(bottom=style_activity_list)
     deepstyle_net.net.concat_content_activity = L.Concat(bottom=content_activity_list)
     deepstyle_net.net.content_loss = L.EuclideanLoss(bottom=["concat_style_activity", "concat_content_activity"],\
-                                   top="content_error",\
                                    loss_weight=1)
 
     deepstyle_net.write_net(args.output)
