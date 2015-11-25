@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import caffe
 import numpy as np
 from caffe import layers as L, params as P, to_proto
@@ -10,12 +11,12 @@ import IPython
 # logging
 LOG_FORMAT = "%(filename)s:%(funcName)s:%(asctime)s.%(msecs)03d -- %(message)s"
 
-VGG19_WEIGHTS = {"content": {"conv4_2": 1},
-                 "style": {"conv1_1": 0.2,
-                           "conv2_1": 0.2,
-                           "conv3_1": 0.2,
-                           "conv4_1": 0.2,
-                           "conv5_1": 0.2}}
+DEEPSTYLE_WEIGHTS = {"content": {"conv4_2": 1},
+                     "style": {"conv1_1": 0.2,
+                               "conv2_1": 0.2,
+                               "conv3_1": 0.2,
+                               "conv4_1": 0.2,
+                               "conv5_1": 0.2}}
 
 parser = argparse.ArgumentParser(description="Generate network using Caffe Python interface.",
                                  usage="generateNetwork.py -m <model_name>")
@@ -68,7 +69,7 @@ def _add_conv_relu_layers(func, network, **args):
     bottom = getattr(network.net, network.prefix+"relu"+str(layer_no)+"_"+str(args["num_conv"]))
     setattr(network.net, network.prefix+"pool"+str(layer_no), _ave_pool(bottom, args["kernel_size"], args["stride"]))
 
-class Network(object):
+class NetSpec(object):
     """
         Create a network
     """
@@ -155,67 +156,82 @@ def main(args):
     """
         Entry point.
     """
-    # logging
+
+    # Logging
     level = logging.INFO
     logging.basicConfig(format=LOG_FORMAT, datefmt="%H:%M:%S", level=level)
     logging.info("Starting style transfer.")
     
     if args.model_name == "vgg19":
-        weights = VGG19_WEIGHTS 
+        weights = DEEPSTYLE_WEIGHTS 
     else:
         assert False, "Model "+args.model_name+" is not available."
 
-    #Style net
-    style_net = Network(args.model_name.lower(),prefix="style_")
+    # Style net spec
+    style_spec = NetSpec(args.model_name.lower(),prefix="style_")
     logging.info("Successfully loaded style model {0}.".format(args.model_name))
 
-    #Content net
-    content_net = Network(args.model_name.lower(),prefix="content_")
-    content_net.net.content_bias1 = L.Bias(param=dict(name="bias",lr_mult=1,decay_mult=0),
+    # Content net spec
+    content_spec = NetSpec(args.model_name.lower(),prefix="content_")
+    content_spec.net.content_bias = L.Bias(param=dict(name="bias",lr_mult=1,decay_mult=0),
         bias_param=dict(bias_filler=dict(type="constant",value=0)))
-    content_net.net.content_conv1_1.fn.inputs = (content_net.net.content_bias1,)
+    content_spec.net.content_conv1_1.fn.inputs = (content_spec.net.content_bias,)
     logging.info("Successfully loaded content model {0}.".format(args.model_name))
 
-    #Merged net
-    deepstyle_net = Network("merge", "deepstyle_", (style_net, content_net))
+    # Merged net spec
+    deepstyle_spec = NetSpec("merge", "deepstyle_", (style_spec, content_spec))
+    # TODO: Fix input specification
+    #       ImageData layer requires a text file that specifies an image & label, giving 2 top blobs
+    #       I don't know how to specify "input" style parameter
+    deepstyle_spec.net.style_data = L.MemoryData(top="style_label", batch_size=1, channels=1, height=224, width=224)
+    deepstyle_spec.net.content_data = L.MemoryData(top="content_label", batch_size=1, channels=1, height=224, width=224)
+    deepstyle_spec.net.content_bias.fn.inputs = (deepstyle_spec.net.content_data,)
+    deepstyle_spec.net.style_conv1_1.fn.inputs = (deepstyle_spec.net.style_data,)
 
     for layer_name in weights["style"].keys():
         layer = L.Gramian(bottom="style_"+layer_name, gramian_param=dict(normalize_output=True))
-        setattr(deepstyle_net.net, "gramian_style_"+layer_name, layer)
+        setattr(deepstyle_spec.net, "gramian_style_"+layer_name, layer)
         layer = L.Gramian(bottom="content_"+layer_name, gramian_param=dict(normalize_output=True))
-        setattr(deepstyle_net.net, "gramian_content_"+layer_name, layer)
+        setattr(deepstyle_spec.net, "gramian_content_"+layer_name, layer)
 
-    style_gram_list = [key for (key, value) in deepstyle_net.net.tops.iteritems() if "gramian_style" in key]
-    content_gram_list = [key for (key, value) in deepstyle_net.net.tops.iteritems() if "gramian_content" in key]
-    deepstyle_net.net.concat_style_gramians = L.Concat(bottom=style_gram_list)
-    deepstyle_net.net.concat_content_gramians = L.Concat(bottom=content_gram_list)
-    deepstyle_net.net.style_loss = L.EuclideanLoss(bottom=["concat_style_gramians", "concat_content_gramians"],\
+    style_gram_list = [key for (key, value) in deepstyle_spec.net.tops.iteritems() if "gramian_style" in key]
+    content_gram_list = [key for (key, value) in deepstyle_spec.net.tops.iteritems() if "gramian_content" in key]
+    deepstyle_spec.net.concat_style_gramians = L.Concat(bottom=style_gram_list)
+    deepstyle_spec.net.concat_content_gramians = L.Concat(bottom=content_gram_list)
+    deepstyle_spec.net.style_loss = L.EuclideanLoss(bottom=["concat_style_gramians", "concat_content_gramians"],\
                                    loss_weight=np.float(args.ratio))
 
     style_activity_list = ["style_"+key for key in weights["content"].keys()]
     content_activity_list = ["content_"+key for key in weights["content"].keys()]
-    deepstyle_net.net.concat_style_activity = L.Concat(bottom=style_activity_list)
-    deepstyle_net.net.concat_content_activity = L.Concat(bottom=content_activity_list)
-    deepstyle_net.net.content_loss = L.EuclideanLoss(bottom=["concat_style_activity", "concat_content_activity"],\
+    deepstyle_spec.net.concat_style_activity = L.Concat(bottom=style_activity_list)
+    deepstyle_spec.net.concat_content_activity = L.Concat(bottom=content_activity_list)
+    deepstyle_spec.net.content_loss = L.EuclideanLoss(bottom=["concat_style_activity", "concat_content_activity"],\
                                    loss_weight=1)
-
-    #TODO: Clean up this code, fix variable names, make model saving use deepstyle_net attributes
-    #TODO: Add data information to layer - could do this via a prototxt merge if necessary
-    #      diff working prototxt to find what is missing
-    #deepstyle_proto = deepstyle_net.write_net(args.output)
-    deepstyle_proto = "models/deepstyle/deepstyle_merge_gen.prototxt"
+    deepstyle_proto = deepstyle_spec.write_net(args.output)
     logging.info("Successfully loaded deepstyle model {0}.".format(args.model_name))
 
     vgg19_proto = "models/vgg19/VGG_ILSVRC_19_layers_deploy.prototxt"
     vgg19_model = "models/vgg19/VGG_ILSVRC_19_layers.caffemodel"
-    vgg19_net = caffe.Net(vgg19_proto, vgg19_model, caffe.TEST)
-    deepstyle_weighted_net = caffe.Net(deepstyle_proto, caffe.TEST)
-    for vkey in vgg19_net.params.keys():
-        for dkey in deepstyle_weighted_net.params.keys():
-            if vkey in dkey:
-                deepstyle_weighted_net.params[dkey] = vgg19_net.params[vkey][:]
 
-    deepstyle_weighted_net.save(args.output+"deepstyle.caffemodel")
+    # Load nets (supressing stderr output)
+    null_fds = os.open(os.devnull, os.O_RDWR)
+    out_orig = os.dup(2)
+    os.dup2(null_fds, 2)
+    vgg19_net = caffe.Net(vgg19_proto, vgg19_model, caffe.TEST)
+    deepstyle_net = caffe.Net(deepstyle_proto, caffe.TEST)
+    os.dup2(out_orig, 2)
+    os.close(null_fds)
+
+    # Transfer params
+    for vkey in vgg19_net.params.keys():
+        for dkey in deepstyle_net.params.keys():
+            if vkey in dkey:
+                deepstyle_net.params[dkey] = vgg19_net.params[vkey][:]
+
+    # Write params to file
+    deepstyle_model = args.output + deepstyle_spec.prefix + deepstyle_spec.network_type + "_gen.caffemodel"
+    deepstyle_net.save(deepstyle_model)
+    logging.info("Successfully created weight file for deepstyle model {0}.".format(deepstyle_model))
     
 if __name__ == "__main__":
     args = parser.parse_args()

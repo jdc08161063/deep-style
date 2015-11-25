@@ -16,12 +16,14 @@ import IPython
 # logging
 LOG_FORMAT = "%(filename)s:%(funcName)s:%(asctime)s.%(msecs)03d -- %(message)s"
 
-VGG19_WEIGHTS = {"content": {"conv4_2": 1},
-                 "style": {"conv1_1": 0.2,
-                           "conv2_1": 0.2,
-                           "conv3_1": 0.2,
-                           "conv4_1": 0.2,
-                           "conv5_1": 0.2}}
+# weights for the individual models
+# assume that corresponding layers' top blob matches its name
+DEEPSTYLE_WEIGHTS = {"content": {"conv4_2": 1},
+                     "style": {"conv1_1": 0.2,
+                               "conv2_1": 0.2,
+                               "conv3_1": 0.2,
+                               "conv4_1": 0.2,
+                               "conv5_1": 0.2}}
 
 # argparse
 parser = argparse.ArgumentParser(description="Transfer the style of one image to another.",
@@ -29,7 +31,7 @@ parser = argparse.ArgumentParser(description="Transfer the style of one image to
 parser.add_argument("-s", "--style-img", type=str, required=True, help="input style (art) image")
 parser.add_argument("-c", "--content-img", type=str, required=True, help="input content image")
 parser.add_argument("-g", "--gpu-id", default=-1, type=int, required=False, help="GPU device number")
-parser.add_argument("-m", "--model", default="vgg19", type=str, required=False, help="model to use")
+parser.add_argument("-m", "--model", default="deepstyle", type=str, required=False, help="model to use")
 parser.add_argument("-i", "--init", default="content", type=str, required=False, help="initialization strategy")
 parser.add_argument("-r", "--ratio", default="1e5", type=str, required=False, help="style-to-content ratio")
 parser.add_argument("-n", "--num-iters", default=512, type=int, required=False, help="L-BFGS iterations")
@@ -37,7 +39,7 @@ parser.add_argument("-l", "--length", default=512, type=float, required=False, h
 parser.add_argument("-v", "--verbose", action="store_true", required=False, help="print minimization outputs")
 parser.add_argument("-o", "--output", default=None, required=False, help="output path")
 
-class Network(object):
+class StyleTransfer(object):
     """
         Load in a network
     """
@@ -54,15 +56,8 @@ class Network(object):
         """
         base_path = os.path.join(style_root,"models", model_name)
 
-        # deepstyle network
-        if model_name == "deepstyle":
-            model_file = os.path.join(base_path, "DEEP_STYLE.prototxt")
-            mean_file = os.path.join(base_path, "ilsvrc_2012_mean.npy")
-            pretrained_file = "none"
-            weights = "none";
-
         # vgg19
-        elif model_name == "vgg19":
+        if model_name == "vgg19":
             model_file = os.path.join(base_path, "VGG_ILSVRC_19_layers_deploy.prototxt")
             pretrained_file = os.path.join(base_path, "VGG_ILSVRC_19_layers.caffemodel")
             mean_file = os.path.join(base_path, "ilsvrc_2012_mean.npy")
@@ -88,6 +83,13 @@ class Network(object):
             pretrained_file = os.path.join(base_path, "bvlc_reference_caffenet.caffemodel")
             mean_file = os.path.join(base_path, "ilsvrc_2012_mean.npy")
             weights = CAFFENET_WEIGHTS
+
+        # deepstyle
+        elif model_name == "deepstyle":
+            model_file = os.path.join(base_path, "deepstyle_merge_gen.prototxt")
+            pretrained_file = os.path.join(base_path, "deepstyle_merge_gen.caffemodel")
+            mean_file = os.path.join(base_path, "ilsvrc_2012_mean.npy")
+            weights = DEEPSTYLE_WEIGHTS
 
         else:
             assert False, "model not available"
@@ -136,15 +138,88 @@ class Network(object):
         os.close(null_fds)
 
         # all models are assumed to be trained on imagenet data
-        transformer = caffe.io.Transformer({"data": net.blobs["data"].data.shape})
-        transformer.set_mean("data", np.load(mean_file).mean(1).mean(1))
-        transformer.set_channel_swap("data", (2,1,0))
-        transformer.set_transpose("data", (2,0,1))
-        transformer.set_raw_scale("data", 255)
+        transformer = []
+        transformer.append(caffe.io.Transformer({"style_data": net.blobs["style_data"].data.shape}))
+        transformer[0].set_mean("style_data", np.load(mean_file).mean(1).mean(1))
+        transformer[0].set_channel_swap("style_data", (2,1,0))
+        transformer[0].set_transpose("style_data", (2,0,1))
+        transformer[0].set_raw_scale("style_data", 255)
+        transformer.append(caffe.io.Transformer({"content_data": net.blobs["content_data"].data.shape}))
+        transformer[1].set_mean("content_data", np.load(mean_file).mean(1).mean(1))
+        transformer[1].set_channel_swap("content_data", (2,1,0))
+        transformer[1].set_transpose("content_data", (2,0,1))
+        transformer[1].set_raw_scale("content_data", 255)
 
         # add net parameters
         self.net = net
         self.transformer = transformer
+
+    def _rescale_net(self, img):
+        """
+            Rescales the network to fit a particular image.
+        """
+
+        # get new dimensions and rescale net + transformer
+        new_dims = (1, img.shape[2]) + img.shape[:2]
+        self.net.blobs["style_data"].reshape(*new_dims)
+        self.transformer[0].inputs["style_data"] = new_dims
+        self.net.blobs["content_data"].reshape(*new_dims)
+        self.transformer[1].inputs["content_data"] = new_dims
+
+    def transfer_style(self, img_style, img_content, length=512, ratio=1e5,
+                       n_iter=512, verbose=False, callback=None):
+        """
+            Transfers the style of the artwork to the input image.
+
+            :param numpy.ndarray img_style:
+                A style image with the desired target style.
+
+            :param numpy.ndarray img_content:
+                A content image in floating point, RGB format.
+
+            :param function callback:
+                A callback function, which takes images at iterations.
+        """
+
+        # assume that convnet input is square
+        orig_dim = min(self.net.blobs["style_data"].shape[2:])
+
+        # rescale the images
+        scale = max(length / float(max(img_style.shape[:2])),
+                    orig_dim / float(min(img_style.shape[:2])))
+        img_style = rescale(img_style, scale)
+        scale = max(length / float(max(img_content.shape[:2])),
+                    orig_dim / float(min(img_content.shape[:2])))
+        img_content = rescale(img_content, scale)
+
+        # compute data bounds
+        data_min = -self.transformer[0].mean["style_data"][:,0,0]
+        data_max = data_min + self.transformer.raw_scale["data"]
+        data_bounds = [(data_min[0], data_max[0])]*(img0.size/3) + \
+                      [(data_min[1], data_max[1])]*(img0.size/3) + \
+                      [(data_min[2], data_max[2])]*(img0.size/3)
+
+        # optimization params
+        grad_method = "L-BFGS-B"
+        reprs = (G_style, F_content)
+        minfn_args = {
+            "args": (self.net, self.weights, self.layers, reprs, ratio),
+            "method": grad_method, "jac": True, "bounds": data_bounds,
+            "options": {"maxcor": 8, "maxiter": n_iter, "disp": verbose}
+        }
+
+        # optimize
+        self._callback = callback
+        minfn_args["callback"] = self.callback
+        if self.use_pbar and not verbose:
+            self._create_pbar(n_iter)
+            self.pbar.start()
+            res = minimize(style_optfn, img0.flatten(), **minfn_args).nit
+            self.pbar.finish()
+        else:
+            res = minimize(style_optfn, img0.flatten(), **minfn_args).nit
+
+        return res
 
 def main(args):
     """
@@ -170,25 +245,18 @@ def main(args):
     img_content = caffe.io.load_image(args.content_img)
     logging.info("Successfully loaded images.")
 
-
     # load nets
-    style_net = Network(args.model.lower())
-    logging.info("Successfully loaded style model {0}.".format(args.model))
-
-    content_net = Network(args.model.lower())
-    logging.info("Successfully loaded content model {0}.".format(args.model))
-
-    combined_net = Network('deepstyle')
+    st = StyleTransfer(args.model.lower())
     logging.info("Successfully loaded deepstyle model {0}.".format(args.model))
 
-    ## perform style transfer
-    #start = timeit.default_timer()
-    ##n_iters = st.transfer_style(img_style, img_content, length=args.length, 
-    ##                            init=args.init, ratio=np.float(args.ratio), 
-    ##                            n_iter=args.num_iters, verbose=args.verbose)
-    #end = timeit.default_timer()
-    #logging.info("Ran {0} iterations in {1:.0f}s.".format(n_iters, end-start))
-    #img_out = st.get_generated()
+    # perform style transfer
+    start = timeit.default_timer()
+    n_iters = st.transfer_style(img_style, img_content, length=args.length, 
+                                ratio=np.float(args.ratio), n_iter=args.num_iters,
+                                verbose=args.verbose)
+    end = timeit.default_timer()
+    logging.info("Ran {0} iterations in {1:.0f}s.".format(n_iters, end-start))
+    img_out = st.get_generated()
 
     ## output path
     #if args.output is not None:
