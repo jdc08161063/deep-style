@@ -31,9 +31,11 @@ def _one_conv_relu(bottom, kernel_size, num_output, pad=0):
     if bottom is None:
         conv = L.Convolution(kernel_size=kernel_size, num_output=num_output, 
                 pad=pad)
+        conv.fn.params['param'] = [{'lr_mult': 0}, {'lr_mult': 0}]
     else:
         conv = L.Convolution(bottom, kernel_size=kernel_size, num_output=num_output, 
                 pad=pad)
+        conv.fn.params['param'] = [{'lr_mult': 0}, {'lr_mult': 0}]
     return conv, L.ReLU(conv, in_place=True)
 
 def _two_conv_relu(bottom, kernel_size, num_output, pad=0):
@@ -214,13 +216,13 @@ def main(args):
     vgg19_model = "models/vgg19/VGG_ILSVRC_19_layers.caffemodel"
 
     # Load nets (supressing stderr output)
-    null_fds = os.open(os.devnull, os.O_RDWR)
-    out_orig = os.dup(2)
-    os.dup2(null_fds, 2)
+    #null_fds = os.open(os.devnull, os.O_RDWR)
+    #out_orig = os.dup(2)
+    #os.dup2(null_fds, 2)
     vgg19_net = caffe.Net(vgg19_proto, vgg19_model, caffe.TEST)
     deepstyle_net = caffe.Net(deepstyle_proto, caffe.TEST)
-    os.dup2(out_orig, 2)
-    os.close(null_fds)
+    #os.dup2(out_orig, 2)
+    #os.close(null_fds)
 
     # Transfer params
     for vkey in vgg19_net.params.keys():

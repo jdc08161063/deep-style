@@ -15,6 +15,12 @@ layer {
   type: "Convolution"
   bottom: "style_data"
   top: "style_conv1_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 64
     pad: 1
@@ -32,6 +38,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv1_1"
   top: "style_conv1_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 64
     pad: 1
@@ -60,6 +72,12 @@ layer {
   type: "Convolution"
   bottom: "style_pool1"
   top: "style_conv2_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 128
     pad: 1
@@ -77,6 +95,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv2_1"
   top: "style_conv2_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 128
     pad: 1
@@ -105,6 +129,12 @@ layer {
   type: "Convolution"
   bottom: "style_pool2"
   top: "style_conv3_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -122,6 +152,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv3_1"
   top: "style_conv3_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -139,6 +175,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv3_2"
   top: "style_conv3_3"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -156,6 +198,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv3_3"
   top: "style_conv3_4"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -184,6 +232,12 @@ layer {
   type: "Convolution"
   bottom: "style_pool3"
   top: "style_conv4_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -201,6 +255,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv4_1"
   top: "style_conv4_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -218,6 +278,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv4_2"
   top: "style_conv4_3"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -235,6 +301,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv4_3"
   top: "style_conv4_4"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -263,6 +335,12 @@ layer {
   type: "Convolution"
   bottom: "style_pool4"
   top: "style_conv5_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -280,6 +358,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv5_1"
   top: "style_conv5_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -297,6 +381,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv5_2"
   top: "style_conv5_3"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -314,6 +404,12 @@ layer {
   type: "Convolution"
   bottom: "style_conv5_3"
   top: "style_conv5_4"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -371,6 +467,12 @@ layer {
   type: "Convolution"
   bottom: "content_bias"
   top: "content_conv1_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 64
     pad: 1
@@ -388,6 +490,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv1_1"
   top: "content_conv1_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 64
     pad: 1
@@ -416,6 +524,12 @@ layer {
   type: "Convolution"
   bottom: "content_pool1"
   top: "content_conv2_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 128
     pad: 1
@@ -433,6 +547,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv2_1"
   top: "content_conv2_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 128
     pad: 1
@@ -461,6 +581,12 @@ layer {
   type: "Convolution"
   bottom: "content_pool2"
   top: "content_conv3_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -478,6 +604,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv3_1"
   top: "content_conv3_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -495,6 +627,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv3_2"
   top: "content_conv3_3"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -512,6 +650,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv3_3"
   top: "content_conv3_4"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 256
     pad: 1
@@ -540,6 +684,12 @@ layer {
   type: "Convolution"
   bottom: "content_pool3"
   top: "content_conv4_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -557,6 +707,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv4_1"
   top: "content_conv4_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -574,6 +730,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv4_2"
   top: "content_conv4_3"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -591,6 +753,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv4_3"
   top: "content_conv4_4"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -619,6 +787,12 @@ layer {
   type: "Convolution"
   bottom: "content_pool4"
   top: "content_conv5_1"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -636,6 +810,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv5_1"
   top: "content_conv5_2"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -653,6 +833,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv5_2"
   top: "content_conv5_3"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
@@ -670,6 +856,12 @@ layer {
   type: "Convolution"
   bottom: "content_conv5_3"
   top: "content_conv5_4"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
   convolution_param {
     num_output: 512
     pad: 1
