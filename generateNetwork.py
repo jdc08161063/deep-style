@@ -94,6 +94,7 @@ class Network(object):
     def write_net(self, output_path):
         file_name = output_path + self.prefix + self.network_type + "_gen.prototxt"
         open(file_name,"w").write(str(self.net.to_proto()))
+        return file_name
 
     def _create_vgg19_net(self):
         self.net = caffe.NetSpec()
@@ -198,8 +199,23 @@ def main(args):
     deepstyle_net.net.content_loss = L.EuclideanLoss(bottom=["concat_style_activity", "concat_content_activity"],\
                                    loss_weight=1)
 
-    deepstyle_net.write_net(args.output)
+    #TODO: Clean up this code, fix variable names, make model saving use deepstyle_net attributes
+    #TODO: Add data information to layer - could do this via a prototxt merge if necessary
+    #      diff working prototxt to find what is missing
+    #deepstyle_proto = deepstyle_net.write_net(args.output)
+    deepstyle_proto = "models/deepstyle/deepstyle_merge_gen.prototxt"
     logging.info("Successfully loaded deepstyle model {0}.".format(args.model_name))
+
+    vgg19_proto = "models/vgg19/VGG_ILSVRC_19_layers_deploy.prototxt"
+    vgg19_model = "models/vgg19/VGG_ILSVRC_19_layers.caffemodel"
+    vgg19_net = caffe.Net(vgg19_proto, vgg19_model, caffe.TEST)
+    deepstyle_weighted_net = caffe.Net(deepstyle_proto, caffe.TEST)
+    for vkey in vgg19_net.params.keys():
+        for dkey in deepstyle_weighted_net.params.keys():
+            if vkey in dkey:
+                deepstyle_weighted_net.params[dkey] = vgg19_net.params[vkey][:]
+
+    deepstyle_weighted_net.save(args.output+"deepstyle.caffemodel")
     
 if __name__ == "__main__":
     args = parser.parse_args()
