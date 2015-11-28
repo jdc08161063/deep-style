@@ -182,11 +182,12 @@ def main(args):
 
     # Merged net spec
     deepstyle_spec = NetSpec("merge", "deepstyle_", (style_spec, content_spec))
-    # TODO: Fix input specification
-    #       ImageData layer requires a text file that specifies an image & label, giving 2 top blobs
-    #       I don't know how to specify "input" style parameter
-    deepstyle_spec.net.style_data = L.MemoryData(top="style_label", batch_size=1, channels=1, height=224, width=224)
-    deepstyle_spec.net.content_data = L.MemoryData(top="content_label", batch_size=1, channels=1, height=224, width=224)
+
+    # Set up input layer
+    #deepstyle_spec.net.style_data = L.Python(python_param=dict(module="pydata",layer="PyDataLayer"))
+    #deepstyle_spec.net.content_data = L.Python(python_param=dict(module="pydata",layer="PyDataLayer"))
+    deepstyle_spec.net.style_data = L.ImageDataLayer(batch_size=1, source="./style_image.txt")
+    deepstyle_spec.net.content_data = L.ImageDataLayer(batch_size=1, source="./content_image.txt")
     deepstyle_spec.net.content_bias.fn.inputs = (deepstyle_spec.net.content_data,)
     deepstyle_spec.net.style_conv1_1.fn.inputs = (deepstyle_spec.net.style_data,)
 
