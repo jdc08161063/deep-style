@@ -18,6 +18,10 @@ DEEPSTYLE_WEIGHTS = {"content": {"conv4_2": 1},
                                "conv4_1": 0.2,
                                "conv5_1": 0.2}}
 
+LENET_WEIGHTS = {"content": {"conv1": 1},
+                "style": {"conv1": 0.5,
+                          "conv2": 0.5}}
+
 parser = argparse.ArgumentParser(description="Generate network using Caffe Python interface.",
                                  usage="generateNetwork.py -m <model_name>")
 parser.add_argument("-m", "--model-name", default="vgg19", type=str, required=False, help="Model type (vgg19 only)")
@@ -25,7 +29,6 @@ parser.add_argument("-r", "--ratio", default="1e4", type=str, required=False, he
 parser.add_argument("-o", "--output", default="./", required=False, help="output path")
 parser.add_argument("-b", "--batch-size", default=1, type=int, required=False, help="Number of items in a batch")
 
-        
 # Helper functions
 def _one_conv_relu(bottom, kernel_size, num_output, pad=0):
     if bottom is None:
@@ -99,6 +102,20 @@ class NetSpec(object):
         open(file_name,"w").write(str(self.net.to_proto()))
         return file_name
 
+    def _create_lenet(self, lmdb, batch_size):
+        # Caffe's version of LeNet: http://nbviewer.ipython.org/github/BVLC/caffe/blob/master/examples/01-learning-lenet.ipynb
+        self.net = caffe.NetSpec()
+        self.net.data, n.label = L.Data(batch_size=batch_size, backend=P.Data.LMDB, source=lmdb, \
+                                        transform_param=dict(scale=1./255), ntop=2)
+        self.net.conv1 = L.Convolution(n.data, kernel_size=5, num_output=20, weight_filler=dict(type='xavier'))
+        self.net.pool1 = L.Pooling(n.conv1, kernel_size=2, stride=2, pool=P.Pooling.MAX)
+        self.net.conv2 = L.Convolution(n.pool1, kernel_size=5, num_output=50, weight_filler=dict(type='xavier'))
+        self.net.pool2 = L.Pooling(n.conv2, kernel_size=2, stride=2, pool=P.Pooling.MAX)
+        self.net.ip1 = L.InnerProduct(n.pool2, num_output=500, weight_filler=dict(type='xavier'))
+        self.net.relu1 = L.ReLU(n.ip1, in_place=True)
+        self.net.ip2 = L.InnerProduct(n.relu1, num_output=10, weight_filler=dict(type='xavier'))
+        self.net.loss = L.SoftmaxWithLoss(n.ip2, n.label)
+
     def _create_vgg19_net(self):
         self.net = caffe.NetSpec()
         # conv1
@@ -163,9 +180,11 @@ def main(args):
     level = logging.INFO
     logging.basicConfig(format=LOG_FORMAT, datefmt="%H:%M:%S", level=level)
     logging.info("Starting style transfer.")
-    
+
     if args.model_name == "vgg19":
         weights = DEEPSTYLE_WEIGHTS 
+    elif args.model_name == "lenet":
+        weights = LENET_WEIGHTS
     else:
         assert False, "Model "+args.model_name+" is not available."
 
