@@ -8,6 +8,9 @@ from caffe.proto import caffe_pb2
 from google import protobuf
 import IPython
 
+import sys
+sys.path.insert(0,"/Users/dpaiton/Code/Yahoo/caffe/python/dataLayer/")
+
 # logging
 LOG_FORMAT = "%(filename)s:%(funcName)s:%(asctime)s.%(msecs)03d -- %(message)s"
 
@@ -203,10 +206,8 @@ def main(args):
     deepstyle_spec = NetSpec("merge", "deepstyle_", (style_spec, content_spec))
 
     # Set up input layer
-    #deepstyle_spec.net.style_data = L.Python(python_param=dict(module="pydata",layer="PyDataLayer"))
-    #deepstyle_spec.net.content_data = L.Python(python_param=dict(module="pydata",layer="PyDataLayer"))
-    deepstyle_spec.net.style_data = L.ImageDataLayer(batch_size=1, source="./style_image.txt")
-    deepstyle_spec.net.content_data = L.ImageDataLayer(batch_size=1, source="./content_image.txt")
+    deepstyle_spec.net.style_data = L.Python(python_param=dict(module="pyData",layer="PyDataLayer"))
+    deepstyle_spec.net.content_data = L.Python(python_param=dict(module="pyData",layer="PyDataLayer"))
     deepstyle_spec.net.content_bias.fn.inputs = (deepstyle_spec.net.content_data,)
     deepstyle_spec.net.style_conv1_1.fn.inputs = (deepstyle_spec.net.style_data,)
 
@@ -230,19 +231,21 @@ def main(args):
     deepstyle_spec.net.content_loss = L.EuclideanLoss(bottom=["concat_style_activity", "concat_content_activity"],\
                                    loss_weight=1)
     deepstyle_proto = deepstyle_spec.write_net(args.output)
-    logging.info("Successfully loaded deepstyle model {0}.".format(args.model_name))
+    logging.info("Successfully wrote prototxt file {0}.".format(deepstyle_proto))
 
     vgg19_proto = "models/vgg19/VGG_ILSVRC_19_layers_deploy.prototxt"
     vgg19_model = "models/vgg19/VGG_ILSVRC_19_layers.caffemodel"
 
     # Load nets (supressing stderr output)
-    #null_fds = os.open(os.devnull, os.O_RDWR)
-    #out_orig = os.dup(2)
-    #os.dup2(null_fds, 2)
+    null_fds = os.open(os.devnull, os.O_RDWR)
+    out_orig = os.dup(2)
+    os.dup2(null_fds, 2)
     vgg19_net = caffe.Net(vgg19_proto, vgg19_model, caffe.TEST)
     deepstyle_net = caffe.Net(deepstyle_proto, caffe.TEST)
-    #os.dup2(out_orig, 2)
-    #os.close(null_fds)
+    os.dup2(out_orig, 2)
+    os.close(null_fds)
+
+    logging.info("Successfully loaded deepstyle model {0}.".format(args.model_name))
 
     # Transfer params
     for vkey in vgg19_net.params.keys():

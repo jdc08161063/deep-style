@@ -3,7 +3,7 @@ layer {
   type: "Python"
   top: "style_data"
   python_param {
-    module: "pydata"
+    module: "pyData"
     layer: "PyDataLayer"
   }
 }
@@ -419,23 +419,23 @@ layer {
   bottom: "style_conv5_4"
   top: "style_conv5_4"
 }
-layer {
-  name: "style_pool5"
-  type: "Pooling"
-  bottom: "style_conv5_4"
-  top: "style_pool5"
-  pooling_param {
-    pool: AVE
-    kernel_size: 3
-    stride: 2
-  }
-}
+#layer {
+#  name: "style_pool5"
+#  type: "Pooling"
+#  bottom: "style_conv5_4"
+#  top: "style_pool5"
+#  pooling_param {
+#    pool: AVE
+#    kernel_size: 3
+#    stride: 2
+#  }
+#}
 layer {
   name: "content_data"
   type: "Python"
   top: "content_data"
   python_param {
-    module: "pydata"
+    module: "pyData"
     layer: "PyDataLayer"
   }
 }
@@ -868,17 +868,17 @@ layer {
   bottom: "content_conv5_4"
   top: "content_conv5_4"
 }
-layer {
-  name: "content_pool5"
-  type: "Pooling"
-  bottom: "content_conv5_4"
-  top: "content_pool5"
-  pooling_param {
-    pool: AVE
-    kernel_size: 3
-    stride: 2
-  }
-}
+#layer {
+#  name: "content_pool5"
+#  type: "Pooling"
+#  bottom: "content_conv5_4"
+#  top: "content_pool5"
+#  pooling_param {
+#    pool: AVE
+#    kernel_size: 3
+#    stride: 2
+#  }
+#}
 layer {
   name: "gramian_style_conv1_1"
   type: "Gramian"
@@ -995,7 +995,7 @@ layer {
   bottom: "concat_style_gramians"
   bottom: "concat_content_gramians"
   top: "style_loss"
-  loss_weight: 10000.0
+  loss_weight: 450.0
 }
 layer {
   name: "concat_style_activity"
