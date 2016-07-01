@@ -9,7 +9,12 @@ from google import protobuf
 import IPython
 
 import sys
-sys.path.insert(0,"/Users/dpaiton/Code/Yahoo/caffe/python/dataLayer/")
+"""
+Put path to caffe installation from this fork:
+  https://github.com/dpaiton/caffe/tree/gramian
+"""
+caffe_path = "..."
+sys.path.insert(0,caffe_path)
 
 # logging
 LOG_FORMAT = "%(filename)s:%(funcName)s:%(asctime)s.%(msecs)03d -- %(message)s"
@@ -185,7 +190,7 @@ def main(args):
     logging.info("Starting style transfer.")
 
     if args.model_name == "vgg19":
-        weights = DEEPSTYLE_WEIGHTS 
+        weights = DEEPSTYLE_WEIGHTS
     elif args.model_name == "lenet":
         weights = LENET_WEIGHTS
     else:
